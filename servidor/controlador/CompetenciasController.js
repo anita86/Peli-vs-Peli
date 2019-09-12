@@ -119,14 +119,14 @@ crearCompetencia: function(req, res) {
 	var sql = 'SELECT * FROM competencia WHERE nombre=?';
   		con.query(sql, [req.body.nombre], function(error, resultado, fields) {
     	//control error
-   			if (error) {
-   				return res.status(500).json(error);
-   			}
-    	//control negocio
-    		if (resultado.length != 0) {
-    			return res.status(422).send('Ya existe una competencia con ese nombre.');
-    		}
-    	});
+   		if (error) {
+   			return res.status(500).json(error)
+   		}
+    //control negocio
+    	if (resultado.length != 0) {
+    		return res.status(422).send("Ya existe una competencia con ese nombre!");
+    	}
+
     var nombreCompetencia = req.body.nombre;
     var generoCompetencia = req.body.genero === '0' ? null : req.body.genero;
     var directorCompetencia = req.body.director === '0' ? null : req.body.director;
@@ -135,17 +135,21 @@ crearCompetencia: function(req, res) {
 
     var sql = "INSERT INTO competencia (nombre, genero_id, director_id, actor_id) VALUES ('" + nombreCompetencia + "', " + generoCompetencia + ", " + directorCompetencia + ", " + actorCompetencia + ");";
     console.log(sql);
+
+
     con.query(sql, function(error, resultado, fields) {
     	if(nombreCompetencia.length == ''){
-			return res.status(422).json('Debes escribir el nombre de la competencia');
+			return res.status(422).json("Debes escribir el nombre de la competencia");
 		}
+
     	if (error) {
         	console.log("Hubo un error al crear la competencia", error.message);
         	return res.status(500).send("Hubo un error al crear la competencia");
       	}
       	res.send(JSON.stringify(resultado));
     });
-  },
+  })
+},
 
 cargarGeneros: function(req, res) {
     var sql = "SELECT * FROM genero";
@@ -194,6 +198,16 @@ cargarDirectores: function(req, res) {
   },
 
   editarCompetencia: function(req, res) {
+  	var sql = 'SELECT * FROM competencia WHERE nombre=?';
+  	con.query(sql, [req.body.nombre], function(error, resultado, fields) {
+   	if (error) {
+   		return res.status(500).json(error)
+   		}
+    if (resultado.length != 0) {
+    	return res.status(422).send("Ya existe una competencia con ese nombre!");
+    	}
+	})
+
     var idCompetencia = req.params.id;
     var nuevoNombre = req.body.nombre;
     var sql = "UPDATE competencia SET nombre = '" + nuevoNombre + "' WHERE id = " + idCompetencia + ";";
@@ -202,9 +216,9 @@ cargarDirectores: function(req, res) {
       if (error) {
         return res.status(500).send("Error al modificar la competencia")
       }
-      if (resultado.length == 0) {
-        console.log("No se encontro la pelicula buscada con ese id");
-        return res.status(404).send("No se encontro ninguna pelicula con ese id");
+      if (nuevoNombre.length == "") {
+        console.log("Debes escribir el nuevo nombre de la competencia");
+        return res.status(422).send("Debes escribir el nuevo nombre de la competencia");
       } else {
         var response = {
           'id': resultado
