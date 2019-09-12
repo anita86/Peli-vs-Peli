@@ -10,15 +10,30 @@ var controllers = {
         return res.status(404).send("Hubo un error en la consulta");
       }
       res.send(JSON.stringify(resultado));
+    });
+  },
 
+  //recupero el nombre de la competencia
+  obtenerCompetencia: function(req, res) {
+    var id = req.params.id;
+    var sql = "SELECT nombre FROM competencia WHERE id = " + id + "";
+    con.query(sql, function(error, resultado, fields) {
+      if (error) {
+        console.log('Hubo un error en la consulta', error.message);
+        return res.status(404).send('Hubo un error en la consulta');
+      }
+      var response = {
+        'nombre': resultado[0].nombre
+      };
+      res.send(JSON.stringify(response));
     });
   },
 
   //obtengo dos películas aleatorias para votar
-  peliculaAleatoria: function(req, res) {
+  obtenerDosPelis: function(req, res) {
     var idCompetencia = req.params.id;
-    var queryCompetencia = "SELECT nombre, genero_id, director_id, actor_id FROM competencia WHERE id = " + idCompetencia + ";";
-    con.query(queryCompetencia, function(error, competencia, fields) {
+    var sql = "SELECT nombre, genero_id, director_id, actor_id FROM competencia WHERE id = " + idCompetencia + ";";
+    con.query(sql, function(error, competencia, fields) {
       if (error) {
         console.log("Hubo un error en la consulta", error.message);
         return res.status(500).send("Hubo un error en la consulta");
@@ -40,12 +55,10 @@ var controllers = {
           console.log("Hubo un error en la consulta", error.message);
           return res.status(500).send("Hubo un error en la consulta");
         }
-
         var response = {
           'peliculas': peliculas,
           'competencia': competencia[0].nombre
         };
-
         res.send(JSON.stringify(response));
       });
     });
@@ -59,8 +72,8 @@ var controllers = {
 
     con.query(sql, function(error, resultado, fields) {
       if (error) {
-        console.log("Hubo un error en la consulta", error.message);
-        return res.status(500).send("Hubo un error en la consulta");
+        console.log("Elegiste una película que no existe", error.message);
+        return res.status(404).send("Elegiste una película que no existe");
       }
       var response = {
         'voto': resultado.insertId,
@@ -69,54 +82,46 @@ var controllers = {
     });
   },
 
-  //obtengo las 3 películas más votadas
   obtenerResultados: function(req, res) {
     var idCompetencia = req.params.id;
     var sql = "SELECT * FROM competencia WHERE id = " + idCompetencia;
-
     con.query(sql, function(error, resultado, fields) {
       if (error) {
         console.log("Hubo un error en la consulta", error.message);
         return res.status(500).send("Hubo un error en la consulta");
       }
-
       if (resultado.length === 0) {
         console.log("No se encontro ninguna competencia con este id");
         return res.status(404).send("No se encontro ninguna competencia con este id");
       }
 
       var competencia = resultado[0];
-
       var sql = "SELECT voto.pelicula_id, pelicula.poster, pelicula.titulo, COUNT(pelicula_id) As votos FROM voto INNER JOIN pelicula ON voto.pelicula_id = pelicula.id WHERE voto.competencia_id = " + idCompetencia + " GROUP BY voto.pelicula_id ORDER BY COUNT(pelicula_id) DESC LIMIT 3";
-
       con.query(sql, function(error, resultado, fields) {
         if (error) {
           console.log("Hubo un error en la consulta", error.message);
           return res.status(500).send("Hubo un error en la consulta");
         }
-
         var response = {
           'competencia': competencia.nombre,
           'resultados': resultado
         };
-
         res.send(JSON.stringify(response));
       });
     });
   },
 
-  //permitir la creación de una nueva competencia
-  crearNuevaCompetencia: function(req, res) {
+  crearCompetencia: function(req, res) {
     var nombreCompetencia = req.body.nombre;
     var generoCompetencia = req.body.genero === '0' ? null : req.body.genero;
     var directorCompetencia = req.body.director === '0' ? null : req.body.director;
     var actorCompetencia = req.body.actor === '0' ? null : req.body.actor;
     console.log(req.body);
 
-    var queryNueva = "INSERT INTO competencia (nombre, genero_id, director_id, actor_id) VALUES ('" + nombreCompetencia + "', " + generoCompetencia + ", " + directorCompetencia + ", " + actorCompetencia + ");";
+    var sql = "INSERT INTO competencia (nombre, genero_id, director_id, actor_id) VALUES ('" + nombreCompetencia + "', " + generoCompetencia + ", " + directorCompetencia + ", " + actorCompetencia + ");";
     console.log(queryNueva);
 
-    con.query(queryNueva, function(error, resultado, fields) {
+    con.query(sql, function(error, resultado, fields) {
       if (error) {
         console.log("Hubo un error al crear la competencia", error.message);
         return res.status(500).send("Hubo un error al crear la competencia");
@@ -125,46 +130,9 @@ var controllers = {
     });
   },
 
-
-  //eliminar votos
-  eliminarVotos: function(req, res) {
-    var idCompetencia = req.params.id;
-    var borrar = "DELETE FROM voto WHERE competencia_id = " + idCompetencia;
-    con.query(borrar, function(error, resultado) {
-      if (error) {
-        console.log("Error al eliminar votos", error.message);
-        return res.status(500).send(error);
-      }
-      console.log("Competencia reiniciada id: " + idCompetencia);
-      res.send(JSON.stringify(resultado));
-    });
-  },
-
-  //recupero el nombre de la competencia
-  nombreCompetencia: function(req, res) {
-    var nombreCompetencia = req.params.id;
-    var query = "SELECT competencia.id, competencia.nombre, genero.nombre genero, director.nombre director, actor.nombre actor FROM competencia LEFT JOIN genero ON genero_id = genero.id LEFT JOIN director ON director_id= director.id LEFT JOIN actor ON actor_id= actor.id WHERE competencia.id = " + nombreCompetencia;
-    con.query(query, function(error, resultado) {
-      if (error) {
-        console.log("Hubo un error en la consulta", error.message);
-        return res.status(500).send("Hubo un error en la consulta");
-      }
-
-      var response = {
-        'id': resultado,
-        'nombre': resultado[0].nombre,
-        'genero_nombre': resultado[0].genero,
-        'actor_nombre': resultado[0].actor,
-        'director_nombre': resultado[0].director
-      }
-      res.send(JSON.stringify(response));
-    });
-  },
-
-  //creo competencias por género
   cargarGeneros: function(req, res) {
-    var pedido = "SELECT * FROM genero"
-    con.query(pedido, function(error, resultado, fields) {
+    var sql = "SELECT * FROM genero";
+    con.query(sql, function(error, resultado, fields) {
       if (error) {
         console.log("Error al cargar géneros", error.message);
         return res.status(500).send(error);
@@ -173,10 +141,9 @@ var controllers = {
     });
   },
 
-  //creo competencias por director
   cargarDirectores: function(req, res) {
-    var pedido = "SELECT * FROM director"
-    con.query(pedido, function(error, resultado, fields) {
+    var sql = "SELECT * FROM director"
+    con.query(sql, function(error, resultado, fields) {
       if (error) {
         console.log("Error al cargar directores", error.message);
         return res.status(500).send(error);
@@ -185,10 +152,9 @@ var controllers = {
     });
   },
 
-  //creo competencias por actores
   cargarActores: function(req, res) {
-    var pedido = "SELECT * FROM actor"
-    con.query(pedido, function(error, resultado, fields) {
+    var sql = "SELECT * FROM actor"
+    con.query(sql, function(error, resultado, fields) {
       if (error) {
         console.log("Error al cargar actores", error.message);
         return res.status(500).send(error);
@@ -197,27 +163,25 @@ var controllers = {
     });
   },
 
-  //borro competencias
   eliminarCompetencia: function(req, res) {
     var idCompetencia = req.params.idCompetencia;
-    var borrar = "DELETE FROM competencia WHERE id =" + idCompetencia;
+    var sql = "DELETE FROM competencia WHERE id =" + idCompetencia;
 
-    con.query(borrar, function(error, resultado) {
+    con.query(sql, function(error, resultado) {
       if (error) {
-        console.log("Error al eliminar la competencia", error.message);
-        return res.status(500).send("Error al eliminar competencia");
+        console.log("Primero debes reiniciar la competencia", error.message);
+        return res.status(500).send("Primero debes reiniciar la competencia");
       }
       res.send(JSON.stringify(resultado));
     });
   },
 
-  //edito las competencias
   editarCompetencia: function(req, res) {
     var idCompetencia = req.params.id;
     var nuevoNombre = req.body.nombre;
-    var queryString = "UPDATE competencia SET nombre = '" + nuevoNombre + "' WHERE id = " + idCompetencia + ";";
+    var sql = "UPDATE competencia SET nombre = '" + nuevoNombre + "' WHERE id = " + idCompetencia + ";";
 
-    con.query(queryString, function(error, resultado, fields) {
+    con.query(sql, function(error, resultado, fields) {
       if (error) {
         return res.status(500).send("Error al modificar la competencia")
       }
@@ -231,7 +195,21 @@ var controllers = {
       }
       res.send(JSON.stringify(response));
     });
-  }
+  },
+
+  //reiniciar competencia
+  eliminarVotos: function(req, res) {
+    var idCompetencia = req.params.id;
+    var sql = "DELETE FROM voto WHERE competencia_id = " + idCompetencia;
+    con.query(sql, function(error, resultado) {
+      if (error) {
+        console.log("Error al eliminar votos", error.message);
+        return res.status(500).send(error);
+      }
+      console.log("Competencia reiniciada id: " + idCompetencia);
+      res.send(JSON.stringify(resultado));
+    });
+  },
 };
 
 module.exports = controllers;

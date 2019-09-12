@@ -19,13 +19,13 @@ app.get('/generos', competenciasController.cargarGeneros);
 app.get('/directores', competenciasController.cargarDirectores);
 app.get('/actores', competenciasController.cargarActores);
 
-app.get('/competencias/:id/peliculas', competenciasController.peliculaAleatoria);
+app.get('/competencias/:id/peliculas', competenciasController.obtenerDosPelis);
 app.post('/competencias/:idCompetencia/voto', competenciasController.guardarVoto);
 app.get('/competencias/:id/resultados', competenciasController.obtenerResultados);
-app.get('/competencias/:id', competenciasController.nombreCompetencia);
+app.get('/competencias/:id', competenciasController.obtenerCompetencia);
 app.get('/competencias', competenciasController.buscarCompetencias);
 
-app.post('/competencias', competenciasController.crearNuevaCompetencia);
+app.post('/competencias', competenciasController.crearCompetencia);
 app.put('/competencias/:id', competenciasController.editarCompetencia);
 
 app.delete('/competencias/:id/votos', competenciasController.eliminarVotos);
