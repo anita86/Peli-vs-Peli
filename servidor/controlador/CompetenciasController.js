@@ -7,7 +7,11 @@ var controllers = {
     con.query(sql, function(error, resultado, fields) {
       if (error) {
         console.log("Hubo un error en la consulta", error.message);
-        return res.status(404).send("Hubo un error en la consulta");
+        return res.status(500).send("Hubo un error en la consulta");
+      }
+      if (resultado.length == 0) {
+      	return res.status(404).send("No existe la competencia");
+
       }
       res.send(JSON.stringify(resultado));
     });
@@ -111,7 +115,18 @@ var controllers = {
     });
   },
 
-  crearCompetencia: function(req, res) {
+crearCompetencia: function(req, res) {
+	var sql = 'SELECT * FROM competencia WHERE nombre=?';
+  		con.query(sql, [req.body.nombre], function(error, resultado, fields) {
+    	//control error
+   			if (error) {
+   				return res.status(500).json(error);
+   			}
+    	//control negocio
+    		if (resultado.length != 0) {
+    			return res.status(422).send('Ya existe una competencia con ese nombre.');
+    		}
+    	});
     var nombreCompetencia = req.body.nombre;
     var generoCompetencia = req.body.genero === '0' ? null : req.body.genero;
     var directorCompetencia = req.body.director === '0' ? null : req.body.director;
@@ -120,17 +135,19 @@ var controllers = {
 
     var sql = "INSERT INTO competencia (nombre, genero_id, director_id, actor_id) VALUES ('" + nombreCompetencia + "', " + generoCompetencia + ", " + directorCompetencia + ", " + actorCompetencia + ");";
     console.log(sql);
-
     con.query(sql, function(error, resultado, fields) {
-      if (error) {
-        console.log("Hubo un error al crear la competencia", error.message);
-        return res.status(500).send("Hubo un error al crear la competencia");
-      }
-      res.send(JSON.stringify(resultado));
+    	if(nombreCompetencia.length == ''){
+			return res.status(422).json('Debes escribir el nombre de la competencia');
+		}
+    	if (error) {
+        	console.log("Hubo un error al crear la competencia", error.message);
+        	return res.status(500).send("Hubo un error al crear la competencia");
+      	}
+      	res.send(JSON.stringify(resultado));
     });
   },
 
-  cargarGeneros: function(req, res) {
+cargarGeneros: function(req, res) {
     var sql = "SELECT * FROM genero";
     con.query(sql, function(error, resultado, fields) {
       if (error) {
@@ -141,7 +158,7 @@ var controllers = {
     });
   },
 
-  cargarDirectores: function(req, res) {
+cargarDirectores: function(req, res) {
     var sql = "SELECT * FROM director"
     con.query(sql, function(error, resultado, fields) {
       if (error) {
