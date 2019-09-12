@@ -119,7 +119,7 @@ var controllers = {
     console.log(req.body);
 
     var sql = "INSERT INTO competencia (nombre, genero_id, director_id, actor_id) VALUES ('" + nombreCompetencia + "', " + generoCompetencia + ", " + directorCompetencia + ", " + actorCompetencia + ");";
-    console.log(queryNueva);
+    console.log(sql);
 
     con.query(sql, function(error, resultado, fields) {
       if (error) {
