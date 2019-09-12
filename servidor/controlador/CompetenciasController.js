@@ -116,39 +116,85 @@ var controllers = {
   },
 
 crearCompetencia: function(req, res) {
-	var sql = 'SELECT * FROM competencia WHERE nombre=?';
-  		con.query(sql, [req.body.nombre], function(error, resultado, fields) {
-    	//control error
-   		if (error) {
-   			return res.status(500).json(error)
-   		}
-    //control negocio
-    	if (resultado.length != 0) {
-    		return res.status(422).send("Ya existe una competencia con ese nombre!");
-    	}
 
-    var nombreCompetencia = req.body.nombre;
-    var generoCompetencia = req.body.genero === '0' ? null : req.body.genero;
-    var directorCompetencia = req.body.director === '0' ? null : req.body.director;
-    var actorCompetencia = req.body.actor === '0' ? null : req.body.actor;
-    console.log(req.body);
+    var nombreCompetencia = req.body.nombre
+    var genero_id = (req.body.genero == '0') ? null : req.body.genero
+    var director_id = (req.body.director == '0') ? null : req.body.director
+    var actor_id = (req.body.actor == '0') ? null : req.body.actor
 
-    var sql = "INSERT INTO competencia (nombre, genero_id, director_id, actor_id) VALUES ('" + nombreCompetencia + "', " + generoCompetencia + ", " + directorCompetencia + ", " + actorCompetencia + ");";
-    console.log(sql);
-
+    //valido que NO exista la competencia
+    var sql = "Select nombre From competencia where nombre = '" + nombreCompetencia + "'" ;
 
     con.query(sql, function(error, resultado, fields) {
-    	if(nombreCompetencia.length == ''){
-			return res.status(422).json("Debes escribir el nombre de la competencia");
-		}
+        if (error) {
+            console.log("Hubo un error en la consulta", error.message);
+            return res.status(500).send("Hubo un error en la consulta");
+        }
+        //validacion si existe esa competencia
+        if (resultado.length === 1) {
+            console.log("ya existe una competencia con ese nombre ");
+            return res.status(422).send("Ya existe una competencia con este nombre: " + nombreCompetencia);
+        }
 
-    	if (error) {
-        	console.log("Hubo un error al crear la competencia", error.message);
-        	return res.status(500).send("Hubo un error al crear la competencia");
-      	}
-      	res.send(JSON.stringify(resultado));
-    });
-  })
+        if (nombreCompetencia.length === 0){
+            console.log("ya existe una competencia con ese nombre ");
+            return res.status(422).send("No ingresaste un nombre para la competencia");
+        }
+        //validacion si existen al menos 2 pelis para crear una competencia segun los criterios que se informen
+        sql = 'Select count(*) as Cant From pelicula as P left join director_pelicula as DP on (P.id = DP.pelicula_id) left join actor_pelicula as AP on (P.id = AP.pelicula_id) ';
+
+        var sqlWhere = "";
+
+        //agregar palabra where si se informa algun criterio
+        if ((genero_id) || (director_id) || (actor_id)) {
+
+            sqlWhere = " where ";
+
+            //genero el where segun esten informados los criterios
+            if (genero_id)   {
+              sqlWhere += "  P.genero_id = " + genero_id + " and";
+            }
+            if (director_id) {
+              sqlWhere += "  DP.director_id = " + director_id + " and";
+            }
+            if (actor_id) {
+              sqlWhere += " AP.actor_id = " + actor_id + " and";
+            }
+
+            //eliminar and final del where
+            sqlWhere = sqlWhere.substr(0, sqlWhere.length - 3)
+        }
+
+        sql = sql + sqlWhere
+
+        con.query(sql, function(error, resultado, fields) {
+            if (error) {
+                console.log("Hubo un error en la consulta", error.message);
+                return res.status(500).send("Hubo un error en la consulta");
+            }
+
+            //validacion si existen 2 pelis minimo
+            if (resultado[0].Cant < 2) {
+                console.log("Imposible crear la competencia. \n  No exiten al menos 2 peliculas que cumplan los criterios" );
+                return res.status(422).send("Imposible crear la competencia. \n  No exiten al menos 2 peliculas que cumplan los criterios" );
+            }
+
+            //insertar la competencia
+            var sql = "insert into competencia (nombre, genero_id, director_id, actor_id) values('" + nombreCompetencia + "'," + genero_id + "," + director_id + "," + actor_id + ")";
+
+            con.query(sql, function(error, resultado, fields) {
+                if (error) {
+                    console.log("Hubo un error en la consulta", error.message);
+                    return res.status(500).send("Hubo un error en la consulta");
+                }
+                var response = {
+                    'nuevoId': resultado.insertId
+                };
+
+                res.send(JSON.stringify(response));
+              });
+            });
+        });
 },
 
 cargarGeneros: function(req, res) {
@@ -190,8 +236,12 @@ cargarDirectores: function(req, res) {
 
     con.query(sql, function(error, resultado) {
       if (error) {
+        console.log("Error", error.message);
+        return res.status(500).send("Error. Debes reiniciar la competencia");
+      }
+      if (error) {
         console.log("Primero debes reiniciar la competencia", error.message);
-        return res.status(500).send("Primero debes reiniciar la competencia");
+        return res.status(422).send("Primero debes reiniciar la competencia");
       }
       res.send(JSON.stringify(resultado));
     });
