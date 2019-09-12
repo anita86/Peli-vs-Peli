@@ -9,10 +9,6 @@ var controllers = {
         console.log("Hubo un error en la consulta", error.message);
         return res.status(500).send("Hubo un error en la consulta");
       }
-      if (resultado.length == 0) {
-      	return res.status(404).send("No existe la competencia");
-
-      }
       res.send(JSON.stringify(resultado));
     });
   },
@@ -24,7 +20,10 @@ var controllers = {
     con.query(sql, function(error, resultado, fields) {
       if (error) {
         console.log('Hubo un error en la consulta', error.message);
-        return res.status(404).send('Hubo un error en la consulta');
+        return res.status(500).send('Hubo un error en la consulta');
+      }
+      if (resultado.length == 0) {
+        return res.status(404).send("No existe la competencia");
       }
       var response = {
         'nombre': resultado[0].nombre
@@ -76,8 +75,12 @@ var controllers = {
 
     con.query(sql, function(error, resultado, fields) {
       if (error) {
-        console.log("Elegiste una película que no existe", error.message);
-        return res.status(404).send("Elegiste una película que no existe");
+        console.log("Hubo un error en la consulta", error.message);
+        return res.status(500).send("Hubo un error en la consulta");
+      }
+      if (resultado.length == 0) {
+        console.log("Competencia no existente", error.message);
+        return res.status(404).send("Competencia no existente");
       }
       var response = {
         'voto': resultado.insertId,
@@ -115,7 +118,7 @@ var controllers = {
     });
   },
 
-crearCompetencia: function(req, res) {
+  crearCompetencia: function(req, res) {
 
     var nombreCompetencia = req.body.nombre
     var genero_id = (req.body.genero == '0') ? null : req.body.genero
@@ -123,97 +126,95 @@ crearCompetencia: function(req, res) {
     var actor_id = (req.body.actor == '0') ? null : req.body.actor
 
     //valido que NO exista la competencia
-    var sql = "Select nombre From competencia where nombre = '" + nombreCompetencia + "'" ;
+    var sql = "Select nombre From competencia where nombre = '" + nombreCompetencia + "'";
 
     con.query(sql, function(error, resultado, fields) {
+      if (error) {
+        console.log("Hubo un error en la consulta", error.message);
+        return res.status(500).send("Hubo un error en la consulta");
+      }
+      //validacion si existe esa competencia
+      if (resultado.length === 1) {
+        console.log("ya existe una competencia con ese nombre ");
+        return res.status(422).send("Ya existe una competencia con este nombre: " + nombreCompetencia);
+      }
+
+      if (nombreCompetencia.length === 0) {
+        console.log("ya existe una competencia con ese nombre ");
+        return res.status(422).send("No ingresaste un nombre para la competencia");
+      }
+      //validacion si existen al menos 2 pelis para crear una competencia segun los criterios que se informen
+      sql = 'Select count(*) as Cant From pelicula as P left join director_pelicula as DP on (P.id = DP.pelicula_id) left join actor_pelicula as AP on (P.id = AP.pelicula_id) ';
+
+      var sqlWhere = "";
+
+      //agregar palabra where si se informa algun criterio
+      if ((genero_id) || (director_id) || (actor_id)) {
+
+        sqlWhere = " where ";
+
+        if (genero_id) {
+          sqlWhere += "  P.genero_id = " + genero_id + " and";
+        }
+        if (director_id) {
+          sqlWhere += "  DP.director_id = " + director_id + " and";
+        }
+        if (actor_id) {
+          sqlWhere += " AP.actor_id = " + actor_id + " and";
+        }
+        //eliminar and final del where
+        sqlWhere = sqlWhere.substr(0, sqlWhere.length - 3)
+      }
+
+      sql = sql + sqlWhere
+
+      con.query(sql, function(error, resultado, fields) {
         if (error) {
-            console.log("Hubo un error en la consulta", error.message);
-            return res.status(500).send("Hubo un error en la consulta");
-        }
-        //validacion si existe esa competencia
-        if (resultado.length === 1) {
-            console.log("ya existe una competencia con ese nombre ");
-            return res.status(422).send("Ya existe una competencia con este nombre: " + nombreCompetencia);
+          console.log("Hubo un error en la consulta", error.message);
+          return res.status(500).send("Hubo un error en la consulta");
         }
 
-        if (nombreCompetencia.length === 0){
-            console.log("ya existe una competencia con ese nombre ");
-            return res.status(422).send("No ingresaste un nombre para la competencia");
-        }
-        //validacion si existen al menos 2 pelis para crear una competencia segun los criterios que se informen
-        sql = 'Select count(*) as Cant From pelicula as P left join director_pelicula as DP on (P.id = DP.pelicula_id) left join actor_pelicula as AP on (P.id = AP.pelicula_id) ';
-
-        var sqlWhere = "";
-
-        //agregar palabra where si se informa algun criterio
-        if ((genero_id) || (director_id) || (actor_id)) {
-
-            sqlWhere = " where ";
-
-            //genero el where segun esten informados los criterios
-            if (genero_id)   {
-              sqlWhere += "  P.genero_id = " + genero_id + " and";
-            }
-            if (director_id) {
-              sqlWhere += "  DP.director_id = " + director_id + " and";
-            }
-            if (actor_id) {
-              sqlWhere += " AP.actor_id = " + actor_id + " and";
-            }
-
-            //eliminar and final del where
-            sqlWhere = sqlWhere.substr(0, sqlWhere.length - 3)
+        //validacion si existen 2 pelis minimo
+        if (resultado[0].Cant < 2) {
+          console.log("Imposible crear la competencia. \n  No exiten al menos 2 peliculas que cumplan los criterios");
+          return res.status(422).send("Imposible crear la competencia. \n  No exiten al menos 2 peliculas que cumplan los criterios");
         }
 
-        sql = sql + sqlWhere
+        //insertar la competencia
+        var sql = "insert into competencia (nombre, genero_id, director_id, actor_id) values('" + nombreCompetencia + "'," + genero_id + "," + director_id + "," + actor_id + ")";
 
         con.query(sql, function(error, resultado, fields) {
-            if (error) {
-                console.log("Hubo un error en la consulta", error.message);
-                return res.status(500).send("Hubo un error en la consulta");
-            }
+          if (error) {
+            console.log("Hubo un error en la consulta", error.message);
+            return res.status(500).send("Hubo un error en la consulta");
+          }
+          var response = {
+            'nuevoId': resultado.insertId
+          };
 
-            //validacion si existen 2 pelis minimo
-            if (resultado[0].Cant < 2) {
-                console.log("Imposible crear la competencia. \n  No exiten al menos 2 peliculas que cumplan los criterios" );
-                return res.status(422).send("Imposible crear la competencia. \n  No exiten al menos 2 peliculas que cumplan los criterios" );
-            }
-
-            //insertar la competencia
-            var sql = "insert into competencia (nombre, genero_id, director_id, actor_id) values('" + nombreCompetencia + "'," + genero_id + "," + director_id + "," + actor_id + ")";
-
-            con.query(sql, function(error, resultado, fields) {
-                if (error) {
-                    console.log("Hubo un error en la consulta", error.message);
-                    return res.status(500).send("Hubo un error en la consulta");
-                }
-                var response = {
-                    'nuevoId': resultado.insertId
-                };
-
-                res.send(JSON.stringify(response));
-              });
-            });
+          res.send(JSON.stringify(response));
         });
-},
+      });
+    });
+  },
 
-cargarGeneros: function(req, res) {
+  cargarGeneros: function(req, res) {
     var sql = "SELECT * FROM genero";
     con.query(sql, function(error, resultado, fields) {
       if (error) {
         console.log("Error al cargar géneros", error.message);
-        return res.status(500).send(error);
+        return res.status(404).send("Error al cargar géneros");
       }
       res.send(JSON.stringify(resultado));
     });
   },
 
-cargarDirectores: function(req, res) {
+  cargarDirectores: function(req, res) {
     var sql = "SELECT * FROM director"
     con.query(sql, function(error, resultado, fields) {
       if (error) {
         console.log("Error al cargar directores", error.message);
-        return res.status(500).send(error);
+        return res.status(404).send("Error al cargar directores");
       }
       res.send(JSON.stringify(resultado));
     });
@@ -224,7 +225,7 @@ cargarDirectores: function(req, res) {
     con.query(sql, function(error, resultado, fields) {
       if (error) {
         console.log("Error al cargar actores", error.message);
-        return res.status(500).send(error);
+        return res.status(404).send("Error al cargar actores");
       }
       res.send(JSON.stringify(resultado));
     });
@@ -248,15 +249,15 @@ cargarDirectores: function(req, res) {
   },
 
   editarCompetencia: function(req, res) {
-  	var sql = 'SELECT * FROM competencia WHERE nombre=?';
-  	con.query(sql, [req.body.nombre], function(error, resultado, fields) {
-   	if (error) {
-   		return res.status(500).json(error)
-   		}
-    if (resultado.length != 0) {
-    	return res.status(422).send("Ya existe una competencia con ese nombre!");
-    	}
-	})
+    var sql = 'SELECT * FROM competencia WHERE nombre=?';
+    con.query(sql, [req.body.nombre], function(error, resultado, fields) {
+      if (error) {
+        return res.status(500).json(error)
+      }
+      if (resultado.length != 0) {
+        return res.status(422).send("Ya existe una competencia con ese nombre!");
+      }
+    })
 
     var idCompetencia = req.params.id;
     var nuevoNombre = req.body.nombre;
@@ -285,7 +286,11 @@ cargarDirectores: function(req, res) {
     con.query(sql, function(error, resultado) {
       if (error) {
         console.log("Error al eliminar votos", error.message);
-        return res.status(500).send(error);
+        return res.status(500).send("Error al eliminar votos");
+      }
+      if (resultado.length == 0) {
+        console.log("Competencia no encontrada");
+        return res.status(404).send("Competencia no encontrada");
       }
       console.log("Competencia reiniciada id: " + idCompetencia);
       res.send(JSON.stringify(resultado));
